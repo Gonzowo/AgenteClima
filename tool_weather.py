@@ -7,14 +7,36 @@ load_dotenv()
 
 @tool
 def get_weather(city: str) -> str:
-    """Obtiene el clima actual para una ciudad especificada."""
+    """Obtiene el clima actual para una ciudad especificada usando OpenWeatherMap."""
     api_key = os.getenv("OPENWEATHERMAP_API_KEY")
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric&lang=es"
-    
-    response = requests.get(url)
-    if response.status_code == 200:
+    if not api_key:
+        return "Falta configurar OPENWEATHERMAP_API_KEY en el archivo .env."
+
+    try:
+        response = requests.get(
+            "https://api.openweathermap.org/data/2.5/weather",
+            params={
+                "q": city,
+                "appid": api_key,
+                "units": "metric",
+                "lang": "es",
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
         data = response.json()
-        temp = data['main']['temp']
-        desc = data['weather'][0]['description']
-        return f"El clima en {city} es de {temp}°C con {desc}."
-    return "No se pudo obtener la información del clima. Verifica el nombre de la ciudad o la API Key."
+    except requests.RequestException as error:
+        return f"No se pudo consultar el clima para {city}: {error}"
+
+    temperature = data["main"]["temp"]
+    feels_like = data["main"]["feels_like"]
+    description = data["weather"][0]["description"]
+    humidity = data["main"]["humidity"]
+    wind_speed = data.get("wind", {}).get("speed", 0)
+    location = data.get("name", city)
+
+    return (
+        f"Clima actual en {location}: {temperature:.1f} °C, {description}. "
+        f"Sensación térmica: {feels_like:.1f} °C. "
+        f"Humedad: {humidity}%. Viento: {wind_speed} m/s."
+    )
